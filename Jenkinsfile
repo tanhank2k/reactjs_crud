@@ -1,57 +1,63 @@
 pipeline {
-    agent {node { label 'nodejs-slave' }}
+    agent { node { label 'nodejs-slave' } }
+    
     environment {
         APP_NAME = 'reactjs_hello_world'
-        DOCKER_IMAGE = "tanhank2k1/${APP_NAME}:latest"
+        GIT_COMMIT_ID = '' // Placeholder for commit ID, will be set dynamically
+        DOCKER_IMAGE = ''  // Placeholder for image name with tag
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // Replace with your Jenkins credential ID
     }
+    
     stages {
         stage('Checkout') {
             steps {
-                // Check out the repository
+                // Check out the repository and get the commit ID
                 checkout scm
+                script {
+                    // Retrieve the short commit ID
+                    GIT_COMMIT_ID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    // Define the Docker image with the commit ID suffix
+                    DOCKER_IMAGE = "tanhank2k1/${APP_NAME}:${GIT_COMMIT_ID}"
+                }
             }
         }
+        
         stage('Install Dependencies') {
             steps {
-                // Install the necessary npm packages
+                // Install necessary npm packages
                 sh 'npm install'
             }
         }
-        stage('Run Tests') {
-            steps {
-                // Run tests (assuming there are tests configured in package.json)
-                sh 'npm test'
-            }
-        }
+        
         stage('Build Application') {
             steps {
                 // Build the React.js application for production
                 sh 'npm run build'
             }
         }
+        
         stage('Docker Build & Push') {
             steps {
                 script {
-                    // Create a Docker image for the app
-                    sh "docker build -t ${DOCKER_IMAGE} ."
-                }
-            }
-        }
-        stage('Deploy') {
-            steps {
-                script {
-                    sh """
-                    if [ \$(docker ps -q -f name=${APP_NAME}) ]; then
-                        docker stop ${APP_NAME}
-                        docker rm ${APP_NAME}
-                    fi
-                    """
-                    // Example deployment: Run the Docker container
-                    sh "docker run -d -p 3000:80 --name ${APP_NAME} ${DOCKER_IMAGE}"
+                    // Authenticate with Docker using credentials
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        // Login to Docker
+                        sh "echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin"
+                        
+                        // Build the Docker image with the commit ID tag
+                        sh "docker build -t ${DOCKER_IMAGE} ."
+                        
+                        // Push the Docker image to the repository
+                        sh "docker push ${DOCKER_IMAGE}"
+                        
+                        // Logout of Docker
+                        sh "docker logout"
+                    }
                 }
             }
         }
     }
+    
     post {
         success {
             echo 'The pipeline has completed successfully!'
