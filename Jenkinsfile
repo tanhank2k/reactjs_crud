@@ -5,7 +5,7 @@ pipeline {
         APP_NAME = 'reactjs_hello_world'
         GIT_COMMIT_ID = '' // Placeholder for commit ID, will be set dynamically
         DOCKER_IMAGE = ''  // Placeholder for image name with tag
-        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // Replace with your Jenkins credential ID
+        DOCKER_CREDENTIALS_ID = 'eddabcf8-673d-4395-a9d1-14077f64aa08' // Replace with your Jenkins credential ID
     }
     
     stages {
